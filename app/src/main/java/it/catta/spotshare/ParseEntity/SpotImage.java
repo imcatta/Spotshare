@@ -17,6 +17,11 @@ import java.io.ByteArrayOutputStream;
 @ParseClassName("SpotImage")
 public class SpotImage extends SmartParseObject {
 
+
+    public ParseFile getParseFileImage() {
+        return getParseFile("image");
+    }
+
     public Bitmap getImage() throws ParseException {
         byte[] imageBytes = getParseFile("image").getData();
         return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
