@@ -6,14 +6,25 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:name=".SpotshareApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:name="it.catta.spotshare.SpotshareApplication"
         android:theme="@style/AppTheme" >
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name" >
+        </activity>
+        <activity
+            android:name="com.parse.ui.ParseLoginActivity"
+            android:label="@string/app_name"
+            android:launchMode="singleTop" >
+            <meta-data
+                android:name="com.parse.ui.ParseLoginActivity.PARSE_LOGIN_ENABLED"
+                android:value="true" />
+        </activity>
+        <activity
+            android:name=".DispatchActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

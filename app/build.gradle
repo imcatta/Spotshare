@@ -25,4 +25,16 @@ dependencies {
     compile 'com.parse.bolts:bolts-android:1.+'
     compile fileTree(dir: 'libs/Parse-1.9.1', include: 'Parse-*.jar')
 
+
+    // Module dependency on ParseLoginUI library sources
+    compile project(':ParseLoginUI')
+
+    // If your app's project does not have the Parse Android SDK already, copy it into your
+    // project at YOUR_PROJECT_LIBS_PATH.
+        compile files('YOUR_PROJECT_LIBS_PATH/Parse-1.9.1.jar')
+        compile files('YOUR_PROJECT_LIBS_PATH/ParseFacebookUtilsV4-1.9.1.jar')
+
+    // Uncomment if using Facebook Login (optional Maven dependency)
+    // compile 'com.facebook.android:facebook-android-sdk:4.0.1'
+
 }

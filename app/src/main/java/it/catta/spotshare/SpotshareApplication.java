@@ -10,9 +10,7 @@ import it.catta.spotshare.ParseEntity.Spot;
 import it.catta.spotshare.ParseEntity.SpotImage;
 import it.catta.spotshare.ParseEntity.Vote;
 
-/**
- * Created by andrea on 20/04/15.
- */
+
 public class SpotshareApplication extends Application {
 
     @Override
@@ -21,7 +19,7 @@ public class SpotshareApplication extends Application {
         super.onCreate();
 
         // uncomment to enable Local Datastore.
-        //Parse.enableLocalDatastore(this);
+        Parse.enableLocalDatastore(this);
 
 
         ParseObject.registerSubclass(Comment.class);
@@ -29,7 +27,7 @@ public class SpotshareApplication extends Application {
         ParseObject.registerSubclass(SpotImage.class);
         ParseObject.registerSubclass(Vote.class);
 
-        Parse.initialize(this, "l9piAfhgLNIPrizyWjbvRQXurgWN0qhmh0Jm3Q3t", "AGIDi1F9s49IkQ0vuU9kMgGyTBwkwERmLeRJigyH");
+        Parse.initialize(this, getString(R.string.parse_app_id), getString(R.string.parse_client_key));
     }
 
 }
