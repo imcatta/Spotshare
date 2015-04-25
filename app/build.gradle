@@ -1,4 +1,21 @@
 apply plugin: 'com.android.application'
+apply plugin: 'android-apt'
+def AAVersion = '3.2'
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.4'
+    }
+}
+apt {
+    arguments {
+        androidManifestFile variant.outputs[0].processResources.manifestFile
+        resourcePackageName 'it.catta.spotshare'
+    }
+}
 
 android {
     compileSdkVersion 22
@@ -20,21 +37,20 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:appcompat-v7:22.0.0'
+    compile 'com.google.android.gms:play-services-location:7.0.0'
+    apt "org.androidannotations:androidannotations:$AAVersion"
+    compile "org.androidannotations:androidannotations-api:$AAVersion"
     compile 'com.parse.bolts:bolts-android:1.+'
-    compile fileTree(dir: 'libs/Parse-1.9.1', include: 'Parse-*.jar')
-
-
+    compile fileTree(include: 'Parse-*.jar', dir: 'libs/Parse-1.9.1')
     // Module dependency on ParseLoginUI library sources
     compile project(':ParseLoginUI')
-
+    // Module dependency on ParseLoginUI library sources
     // If your app's project does not have the Parse Android SDK already, copy it into your
     // project at YOUR_PROJECT_LIBS_PATH.
-        compile files('YOUR_PROJECT_LIBS_PATH/Parse-1.9.1.jar')
-        compile files('YOUR_PROJECT_LIBS_PATH/ParseFacebookUtilsV4-1.9.1.jar')
-
+    compile files('YOUR_PROJECT_LIBS_PATH/Parse-1.9.1.jar')
+    compile files('YOUR_PROJECT_LIBS_PATH/ParseFacebookUtilsV4-1.9.1.jar')
     // Uncomment if using Facebook Login (optional Maven dependency)
     // compile 'com.facebook.android:facebook-android-sdk:4.0.1'
-
 }

@@ -1,0 +1,8 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/create_spot_activity_fragment_container"
+    tools:context="it.catta.spotshare.CreateSpotActivity">
+
+</FrameLayout>

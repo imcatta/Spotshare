@@ -24,6 +24,10 @@ public class Spot extends SmartParseObject {
         return getString("description");
     }
 
+    public void setDescription(String description) {
+        put("description", description);
+    }
+
     public void fetchCreatedBy(GetCallback<ParseUser> callback) {
         getParseObject("createdBy").fetchIfNeededInBackground(callback);
     }
