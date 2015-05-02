@@ -1,19 +1,28 @@
 package it.catta.spotshare;
 
+import android.app.Activity;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarActivity;
 
 import org.androidannotations.annotations.EActivity;
-import org.androidannotations.annotations.Trace;
+
 
 @EActivity
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends Activity {
 
     @Override
-    @Trace
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        CreateSpotActivity_.intent(this).start();
+        setContentView(R.layout.activity_main);
+
+
+        if (savedInstanceState == null) {
+            ShowSpotsFragment fragment = ShowSpotsFragment_.builder().build();
+            getFragmentManager().beginTransaction()
+                    .add(R.id.main_activity_fragment_container, fragment).commit();
+        }
+
+
+
     }
 
 

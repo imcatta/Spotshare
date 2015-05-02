@@ -1,9 +1,9 @@
 package it.catta.spotshare;
 
 import android.app.Activity;
+import android.app.Fragment;
 import android.location.Location;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -34,7 +34,7 @@ import it.catta.spotshare.ParseEntity.Spot;
  */
 @EFragment(R.layout.fragment_create_spot)
 public class CreateSpotFragment extends Fragment implements GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener{
+        GoogleApiClient.OnConnectionFailedListener {
 
     protected GoogleApiClient googleApiClient;
     @ViewById
@@ -126,8 +126,6 @@ public class CreateSpotFragment extends Fragment implements GoogleApiClient.Conn
     }
 
 
-
-
     protected synchronized void buildGoogleApiClient() {
         googleApiClient = new GoogleApiClient.Builder(getActivity())
                 .addApi(LocationServices.API)
@@ -147,7 +145,7 @@ public class CreateSpotFragment extends Fragment implements GoogleApiClient.Conn
      * >Communicating with Other Fragments</a> for more information.
      */
     public interface OnSpotCreatedListener {
-        public void onSpotCreated();
+        void onSpotCreated();
     }
 
 }
