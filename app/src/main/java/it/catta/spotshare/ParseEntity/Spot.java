@@ -6,11 +6,13 @@ import com.parse.ParseGeoPoint;
 import com.parse.ParseObject;
 import com.parse.ParseUser;
 
+import java.io.Serializable;
+
 /**
  * Created by andrea on 20/04/15.
  */
 @ParseClassName("Spot")
-public class Spot extends SmartParseObject {
+public class Spot extends ParseObject implements Serializable {
 
     public String getName() {
         return getString("name");
@@ -46,6 +48,10 @@ public class Spot extends SmartParseObject {
 
     public void setPosition(ParseGeoPoint position) {
         put("position", position);
+    }
+
+    public double getVoteAverage() {
+        return getDouble("voteAverage");
     }
 
 }

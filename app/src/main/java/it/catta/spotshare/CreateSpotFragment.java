@@ -2,28 +2,36 @@ package it.catta.spotshare;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
+import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
-import android.widget.ArrayAdapter;
+import android.provider.MediaStore;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.widget.EditText;
-import android.widget.Spinner;
+import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationServices;
+import com.parse.ParseException;
 import com.parse.ParseGeoPoint;
 import com.parse.ParseUser;
+import com.parse.SaveCallback;
 
-import org.androidannotations.annotations.AfterViews;
-import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EFragment;
 import org.androidannotations.annotations.ViewById;
 
-import bolts.Continuation;
-import bolts.Task;
+import java.io.File;
+import java.io.IOException;
+
 import it.catta.spotshare.ParseEntity.Spot;
+import it.catta.spotshare.ParseEntity.SpotImage;
 
 
 /**
@@ -33,25 +41,30 @@ import it.catta.spotshare.ParseEntity.Spot;
  * to handle interaction events.
  */
 @EFragment(R.layout.fragment_create_spot)
-public class CreateSpotFragment extends Fragment implements GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener {
+public class CreateSpotFragment extends Fragment  {
 
-    protected GoogleApiClient googleApiClient;
+    private static final int REQUEST_TAKE_PHOTO = 1;
+
+    private GoogleApiClient googleApiClient;
     @ViewById
     protected EditText editTextSpotName;
     @ViewById
     protected EditText editTextSpotDescription;
     @ViewById
-    protected Spinner spinnerSpotLocation;
+    protected ImageView createSpotImageView;
+    private String photoFilePath;
 
 
     private OnSpotCreatedListener listener;
 
-    public void onActivityCreated (Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        buildGoogleApiClient();
-        googleApiClient.connect();
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setRetainInstance(true);
+        setHasOptionsMenu(true);
     }
+
+
 
     @Override
     public void onAttach(Activity activity) {
@@ -64,74 +77,113 @@ public class CreateSpotFragment extends Fragment implements GoogleApiClient.Conn
         }
     }
 
-    @AfterViews
-    protected void initViews() {
-        // Create an ArrayAdapter using the string array and a default spinner layout
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(),
-                    R.array.spinner_spot_location_elements, android.R.layout.simple_spinner_item);
-        // Specify the layout to use when the list of choices appears
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        // Apply the adapter to the spinner
-        spinnerSpotLocation.setAdapter(adapter);
-    }
 
 
-    @Click
-    protected void createSpot() {
-        //TODO bloccare tutto mentre si sta creando lo spot
-        Spot spot = new Spot();
-        spot.setName(editTextSpotName.getText().toString());
-        spot.setDescription(editTextSpotDescription.getText().toString());
-        spot.setCreatedBy(ParseUser.getCurrentUser());
+    private void createSpot() {
+        LocationManager locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
+        Location currentLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 
-        //TODO controllare il valore dello spinner
-        Location currentLocation = LocationServices.FusedLocationApi.getLastLocation(
-                googleApiClient);
-        ParseGeoPoint geoPoint = new ParseGeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude());
-        spot.setPosition(geoPoint);
-        spot.saveInBackground().continueWith(new Continuation<Void, Void>() {
-            @Override
-            public Void then(Task<Void> task) {
-                if (task.isCancelled() || task.isFaulted()) {
-                    Toast.makeText(CreateSpotFragment.this.getActivity(), R.string.generic_error, Toast.LENGTH_LONG).show();
+        if (currentLocation == null) {
+            Toast.makeText(getActivity(), R.string.generic_error, Toast.LENGTH_LONG).show();
+        } else {
+            //TODO bloccare tutto mentre si sta creando lo spot
+            final Spot spot = new Spot();
+            spot.setName(editTextSpotName.getText().toString());
+            spot.setDescription(editTextSpotDescription.getText().toString());
+            spot.setCreatedBy(ParseUser.getCurrentUser());
+
+
+            ParseGeoPoint geoPoint = new ParseGeoPoint(currentLocation.getLatitude(), currentLocation.getLongitude());
+            spot.setPosition(geoPoint);
+
+            final Bitmap image = BitmapFactory.decodeFile(photoFilePath);
+
+            // TODO Gestire meglio questa roba
+            // https://github.com/BoltsFramework/Bolts-Android
+            spot.saveInBackground(new SaveCallback() {
+                @Override
+                public void done(ParseException e) {
+                    if (e == null) {
+                        if (image != null) {
+                            SpotImage spotImage = new SpotImage();
+                            spotImage.setImage(image);
+                            spotImage.setReferredTo(spot);
+                            spotImage.saveInBackground(new SaveCallback() {
+                                @Override
+                                public void done(ParseException e) {
+                                    if (e == null) {
+                                        listener.onSpotCreated();
+                                    } else {
+                                        Toast.makeText(CreateSpotFragment.this.getActivity(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                                    }
+
+                                }
+                            });
+                        } else {
+                            listener.onSpotCreated();
+                        }
+                    } else {
+                        Toast.makeText(CreateSpotFragment.this.getActivity(), e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                    }
                 }
-                listener.onSpotCreated();
-                return null;
-            }
-        });
+            });
+        }
+
     }
 
+    protected void dispatchTakePictureIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getActivity().getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = File.createTempFile("image", null, getActivity().getExternalCacheDir());
+            } catch (IOException ex) { }
+
+            if (photoFile == null) {
+                Toast.makeText(getActivity(), R.string.generic_error, Toast.LENGTH_LONG).show();
+            } else {
+                photoFilePath = photoFile.getAbsolutePath();
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
+                        Uri.fromFile(photoFile));
+                startActivityForResult(takePictureIntent, REQUEST_TAKE_PHOTO);
+            }
+
+
+
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_TAKE_PHOTO && resultCode == Activity.RESULT_OK) {
+            Bitmap image = BitmapFactory.decodeFile(photoFilePath);
+            createSpotImageView.setImageBitmap(image);
+        }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        inflater.inflate(R.menu.menu_create_spot_fragment, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.create_spot_item:
+                createSpot();
+                return true;
+            case R.id.take_photo_item:
+                dispatchTakePictureIntent();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
 
     @Override
     public void onDetach() {
         super.onDetach();
         listener = null;
-    }
-
-
-    //TODO gestione degli errori di connessione
-    @Override
-    public void onConnected(Bundle connectionHint) {
-        Log.d(CreateSpotFragment.class.getSimpleName(), "GoogleApiClient connected");
-    }
-
-    @Override
-    public void onConnectionSuspended(int cause) {
-        Log.w((CreateSpotFragment.class.getSimpleName()), "GoogleApiClient connection suspended");
-    }
-
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
-        Log.e(CreateSpotFragment.class.getSimpleName(), "GoogleApiClient connection failed!");
-    }
-
-
-    protected synchronized void buildGoogleApiClient() {
-        googleApiClient = new GoogleApiClient.Builder(getActivity())
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
     }
 
     /**

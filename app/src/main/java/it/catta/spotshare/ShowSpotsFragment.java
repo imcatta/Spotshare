@@ -1,153 +1,209 @@
 package it.catta.spotshare;
 
-import android.graphics.Color;
+import android.app.Fragment;
+import android.content.res.Resources;
 import android.location.Location;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.View;
+import android.widget.FrameLayout;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.CameraPosition;
-import com.google.android.gms.maps.model.Circle;
-import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.parse.FindCallback;
+import com.parse.ParseException;
+import com.parse.ParseGeoPoint;
+import com.parse.ParseQuery;
+import com.sothree.slidinguppanel.SlidingUpPanelLayout;
 
-import org.androidannotations.annotations.AfterInject;
+import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.EFragment;
+import org.androidannotations.annotations.ViewById;
+
+import java.util.HashMap;
+import java.util.List;
+
+import it.catta.spotshare.ParseEntity.Spot;
 
 
-@EFragment
-public class ShowSpotsFragment extends MapFragment implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener, LocationListener, GoogleMap.OnCameraChangeListener {
-
-    //private OnFragmentInteractionListener mListener;
+@EFragment(R.layout.fragment_show_spots)
+public class ShowSpotsFragment extends Fragment implements OnMapReadyCallback,
+        SlidingUpPanelLayout.PanelSlideListener, GoogleMap.OnMarkerClickListener,
+        MainActivity.OnBackPressedListener, GoogleMap.OnMapClickListener {
 
     private GoogleMap map;
-    private GoogleApiClient googleApiClient;
-    private Circle mapCircle;
+    @ViewById
+    protected SlidingUpPanelLayout slidingLayout;
+    @ViewById(R.id.frame_layout_spot_details_container)
+    protected FrameLayout spotDetailsContainer;
 
+
+    private String currentSpotId;
+    private HashMap<String, Spot> spots;
+
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setRetainInstance(true);
+    }
 
     @Override
     public void onMapReady(GoogleMap map) {
         this.map = map;
-        map.setOnCameraChangeListener(this);
-        buildGoogleApiClient();
-        googleApiClient.connect();
+        map.setMyLocationEnabled(true);
+        map.getUiSettings().setZoomControlsEnabled(true);
+        map.setOnMarkerClickListener(this);
+        map.setOnMapClickListener(this);
+        findAndDrawAllSpots();
+        zoomToCurrentPosition();
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+    public boolean onMarkerClick(Marker marker){
+        currentSpotId = marker.getId();
+        showSmallSpotDetails();
+        slidingLayout.setPanelState(SlidingUpPanelLayout.PanelState.COLLAPSED);
+        return true;
+    }
 
-        if (mapCircle == null) {
-            map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 13));
+    @Override
+    public void onMapClick(LatLng latLng) {
+        slidingLayout.setPanelState(SlidingUpPanelLayout.PanelState.HIDDEN);
+    }
+
+    @Override
+    public boolean onBackPressed() {
+        if (slidingLayout == null) {
+            return false;
         }
-        updateCircle(latLng);
-    }
 
-    @Override
-    public void onCameraChange(CameraPosition cameraPosition) {
-
-        //updateCircle();
-    }
-
-    protected void startLocationUpdate() {
-        LocationRequest mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(2000);
-        mLocationRequest.setInterval(500);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        LocationServices.FusedLocationApi.requestLocationUpdates(
-                googleApiClient, mLocationRequest, this);
-    }
-
-    protected void stopLocationUpdates() {
-        if (googleApiClient != null) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(
-                    googleApiClient, this);
+        switch (slidingLayout.getPanelState()) {
+            case EXPANDED:
+                slidingLayout.setPanelState(SlidingUpPanelLayout.PanelState.COLLAPSED);
+                return true;
+            case COLLAPSED:
+                slidingLayout.setPanelState(SlidingUpPanelLayout.PanelState.HIDDEN);
+                return true;
+            default:
+                return false;
         }
     }
 
-    private void updateCircle(LatLng latLng) {
-        if (mapCircle == null) {
-            mapCircle =
-                    map.addCircle(
-                            new CircleOptions().center(latLng).radius(50));
-            int baseColor = Color.BLUE;
-            mapCircle.setStrokeColor(baseColor);
-            mapCircle.setStrokeWidth(2);
-            mapCircle.setFillColor(Color.argb(50, Color.red(baseColor), Color.green(baseColor),
-                    Color.blue(baseColor)));
-        }
-        mapCircle.setCenter(latLng);
-        mapCircle.setRadius(50);
+    private void findAndDrawAllSpots() {
+        ParseQuery<Spot> query = ParseQuery.getQuery(Spot.class);
+        query.findInBackground(new FindCallback<Spot>() {
+            @Override
+            public void done(List<Spot> list, ParseException e) {
+                if (e == null) {
+                    spots = new HashMap<String, Spot>(list.size());
+
+                    for (Spot spot : list) {
+                        Marker marker = drawSpot(spot);
+                        spots.put(marker.getId(), spot);
+                    }
+                } else {
+                    Log.e(ShowSpotsFragment.class.getSimpleName(), e.getMessage());
+                }
+            }
+        });
+
     }
 
-    @AfterInject
-    protected void afterInjection() {
-        this.getMapAsync(this);
+    private Marker drawSpot(Spot spot) {
+        ParseGeoPoint geoPoint = spot.getPosition();
+
+        return map.addMarker(new MarkerOptions()
+                .position(new LatLng(geoPoint.getLatitude(), geoPoint.getLongitude()))
+                .title(spot.getName())
+                .snippet(spot.getDescription()));
+    }
+
+    private void zoomToCurrentPosition() {
+        map.setOnMyLocationChangeListener(new GoogleMap.OnMyLocationChangeListener() {
+            @Override
+            public void onMyLocationChange(Location location) {
+                map.setOnMyLocationChangeListener(null);
+                LatLng latLngLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLngLocation, 12));
+            }
+        });
     }
 
 
-    //TODO gestione degli errori di connessione
-    @Override
-    public void onConnected(Bundle connectionHint) {
-        Log.d(CreateSpotFragment.class.getSimpleName(), "GoogleApiClient connected");
-        startLocationUpdate();
-    }
 
-    @Override
-    public void onConnectionSuspended(int cause) {
-        Log.w((CreateSpotFragment.class.getSimpleName()), "GoogleApiClient connection suspended");
-    }
 
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
-        Log.e(CreateSpotFragment.class.getSimpleName(), "GoogleApiClient connection failed!");
+    @AfterViews
+    protected void initViews() {
+        MapFragment mapFragment = new MapFragment();
+        getFragmentManager().beginTransaction()
+                .add(R.id.frame_layout_map_container, mapFragment)
+                .commit();
+        slidingLayout.setPanelSlideListener(this);
+        mapFragment.getMapAsync(this);
     }
 
 
-    protected synchronized void buildGoogleApiClient() {
-        googleApiClient = new GoogleApiClient.Builder(getActivity())
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
+    private void showSmallSpotDetails() {
+        Spot spot = spots.get(currentSpotId);
+
+        Fragment fragment = SpotDetailsSmallFragment_.builder()
+                .spot(spot)
                 .build();
+        getFragmentManager().beginTransaction()
+                .replace(R.id.frame_layout_spot_details_container, fragment)
+                .commit();
+
+
+    }
+
+    private void showSpotDetails() {
+        Spot spot = spots.get(currentSpotId);
+
+        Fragment fragment = CommentListFragment_.builder()
+                .spot(spot)
+                .build();
+        getFragmentManager().beginTransaction()
+            .replace(R.id.frame_layout_spot_details_container, fragment)
+            .commit();
+
+    }
+
+
+    @Override
+    public void onPanelCollapsed(View view) {
+        map.setPadding(0, 0, 0, (int) convertDpToPixel(68));
+        showSmallSpotDetails();
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
-        stopLocationUpdates();
-    }
-
-    /*@Override
-    public void onAttach(Activity activity) {
-        super.onAttach(activity);
-        try {
-            mListener = (OnFragmentInteractionListener) activity;
-        } catch (ClassCastException e) {
-            throw new ClassCastException(activity.toString()
-                    + " must implement OnFragmentInteractionListener");
-        }
+    public void onPanelExpanded(View view) {
+        showSpotDetails();
     }
 
     @Override
-    public void onDetach() {
-        super.onDetach();
-        mListener = null;
+    public void onPanelSlide(View view, float v) {
+    }
+    @Override
+    public void onPanelAnchored(View view) {
+    }
+    @Override
+    public void onPanelHidden(View view) {
+        map.setPadding(0, 0, 0, 0);
     }
 
+    public float convertDpToPixel(float dp){
+        Resources resources = getResources();
+        DisplayMetrics metrics = resources.getDisplayMetrics();
+        float px = dp * (metrics.densityDpi / 160f);
+        return px;
+    }
 
-    public interface OnFragmentInteractionListener {
-        // TODO: Update argument type and name
-        public void onFragmentInteraction(Uri uri);
-    }*/
 
 }

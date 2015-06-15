@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2F8EEC"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="6dp">
+    <TextView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/spotNameTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textColor="#ffffff"
+        android:textSize="26sp" />
+
+    <RatingBar
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/smallSpotDetailsRatingBar"
+        android:numStars="5"
+        android:progressTint="#ffffed27"
+        android:stepSize="0.1"
+        android:isIndicator="true"
+        style="?android:attr/ratingBarStyleSmall" />
+
+</LinearLayout>
